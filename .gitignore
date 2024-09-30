@@ -1,5 +1,16 @@
 /.vs/
 /out/
+CMakeFiles/
+x64/
+Debug/
+
+
+*.dir
+CMakeCache.txt
+*.vcxproj
+*.vcxproj.filters
+*.sln
+*.cmake
 
 # Prerequisites
 *.d
