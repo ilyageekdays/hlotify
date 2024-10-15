@@ -16,9 +16,9 @@ Notification::Notification(const std::string &title, const std::string &message,
 Notification::Notification(Notification&& other) noexcept
     : title(std::move(other.title)),
       message(std::move(other.message)),
-      duration(other.duration),
-      thread(std::move(other.thread)) { // Перемещение потока
-    other.duration = 0; // Обнуляем duration у перемещаемого объекта
+      thread(std::move(other.thread)),
+      duration(other.duration) {
+    other.duration = 0;
 }
 
 void Notification::join() {
