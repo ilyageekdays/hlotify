@@ -1,8 +1,11 @@
+/logs
 /.vs/
 /out/
 CMakeFiles/
 x64/
+build/
 Debug/
+ignore/
 
 
 *.dir
