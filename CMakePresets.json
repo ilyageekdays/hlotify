@@ -7,21 +7,23 @@
     },
     "configurePresets": [
     {
-        "name": "default",
+        "name": "Debug",
         "hidden": false,
         "generator": "Ninja",
         "binaryDir": "${sourceDir}/build",
         "cacheVariables": {
             "CMAKE_EXPORT_COMPILE_COMMANDS": "YES",
-            "CMAKE_CXX_EXTENSIONS":  "OFF", 
-            "CMAKE_BUILD_TYPE": "Debug",
+            "CMAKE_CXX_EXTENSIONS":  "OFF",
             "CMAKE_CXX_STANDARD": "20",
-            "CMAKE_CXX_STANDARD_REQUIRED": "ON"
+            "CMAKE_CXX_STANDARD_REQUIRED": "ON",
+            "CMAKE_BUILD_TYPE": "Debug",
+            "CMAKE_CXX_FLAGS_DEBUG": "-g",
+            "CMAKE_C_FLAGS_DEBUG": "-g"
         }
     },
     {
-        "name": "release",
-        "inherits": "default",
+        "name": "Release",
+        "inherits": "Debug",
         "hidden": false,
         "cacheVariables": {
             "CMAKE_BUILD_TYPE": "Release"
@@ -30,26 +32,23 @@
     ],
     "buildPresets": [
     {
-        "name": "default",
-        "configurePreset": "default",
+        "name": "Debug",
+        "configurePreset": "Debug",
         "hidden": false,
-        "jobs": 4 
+        "jobs": 4
     },
     {
-        "name": "release",
-        "configurePreset": "release",
+        "name": "Release",
+        "configurePreset": "Release",
         "hidden": false,
         "jobs": 4
     }
     ],
     "testPresets": [
     {
-        "name": "Default",
-        "configurePreset": "default",
-        "hidden": false,
-        "execution": {
-            "parallelLevel": 4
-        }
+        "name": "Debug",
+        "configurePreset": "Debug",
+        "hidden": false
     }
     ]
 }

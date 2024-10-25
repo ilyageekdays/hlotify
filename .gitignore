@@ -1,19 +1,16 @@
-/logs
-/.vs/
-/out/
+# Build Cache and Results
 CMakeFiles/
 x64/
 build/
-Debug/
-ignore/
-
-
-*.dir
 CMakeCache.txt
+*.dir
+*.cmake
+
+# Visual Studio Files
 *.vcxproj
 *.vcxproj.filters
 *.sln
-*.cmake
+
 
 # Prerequisites
 *.d
