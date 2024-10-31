@@ -1,12 +1,13 @@
 #include <iostream>
 #include <cstdlib>
 #include <iterator>
+#include <ranges>
 
-#include "notificationmanager.h"
+#include "notification_manager.h"
 #include "config.h"
 
 void printVector(const std::vector<std::string>& vec) {
-    std::copy(vec.begin(), vec.end(), std::ostream_iterator<std::string>(std::cout, "\n"));
+    std::ranges::copy(vec, std::ostream_iterator<std::string>(std::cout, "\n"));
 }
 
 int main(int argc, char* argv[]) {
@@ -96,7 +97,7 @@ int main(int argc, char* argv[]) {
                 std::system("clear");
                 std::cout << "List of Sections:\n";
                 std::vector<std::string> vec = config.getSections();
-                std::copy(vec.begin(), vec.end(), std::ostream_iterator<std::string>(std::cout, "\n"));
+                printVector(vec);
                 std::cout << "\n\n";
                 break;
             }

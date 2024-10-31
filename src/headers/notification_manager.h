@@ -3,7 +3,7 @@
 
 #include "notification.h"
 #include <vector>
-#include <mutex>
+#include <shared_mutex>
 
 class NotificationManager {
 public:
@@ -15,7 +15,7 @@ public:
 
 private:
     std::vector<std::shared_ptr<Notification>> notifications;
-    std::mutex vec_mutex;
+    std::shared_mutex vec_mutex;
 };
 
 #endif // NOTIFICATIONMANAGER_H

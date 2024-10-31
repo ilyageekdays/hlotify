@@ -2,6 +2,7 @@
 #include <cstdlib>
 #include <fcntl.h>
 #include <string>
+#include <sstream>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -45,7 +46,17 @@ std::string HlotifyConfig::findConfig() {
 
     envConfigPath = std::getenv("HOME");
     if (!envConfigPath) {
-        envConfigPath = getpwuid(getuid())->pw_dir;
+        struct passwd pwd;
+        struct passwd *result = nullptr;
+        std::string buffer(1024, '\0');
+
+        if (getpwuid_r(getuid(), &pwd, &buffer[0], buffer.size(), &result) == 0) {
+                if (result != nullptr) {
+                    envConfigPath = pwd.pw_dir; 
+                }
+            } else {
+                configError("Unable to get user information");
+            }
     }
     configPath = std::string(envConfigPath) + "/.config/hlotify/hlotify.rc";
     if (HlotifyConfig::isExist(configPath)) {
@@ -73,7 +84,7 @@ void HlotifyConfig::loadConfigFile() {
 }
 
 void HlotifyConfig::saveConfigFile() {
-    SI_Error rcErr = rc.SaveFile(configPath.c_str());
+    rcErr = rc.SaveFile(configPath.c_str());
     if (rcErr != SI_OK) {
         configErrorErrno("Unable to save config file");
         exit(EIO);
@@ -98,12 +109,11 @@ void HlotifyConfig::createDirs(const std::string& path) {
     std::string dir = "";
     for (const char &ch : path) {
         dir += ch;
-        if (ch == '/' || ch == '\\') {
-            if (access(dir.c_str(), F_OK) != 0) {
-                if (mkdir(dir.c_str(), 0755) != 0 && errno != EEXIST) {
-                    configErrorErrno("Unable create directory");
-                }
-            }
+        if ((ch == '/' || ch == '\\') &&
+            (access(dir.c_str(), F_OK) != 0 &&
+            (mkdir(dir.c_str(), S_IRWXU | S_IRWXG) != 0 && errno != EEXIST))) {
+                
+            configErrorErrno("Unable create directory");
         }
     }
 }
@@ -113,7 +123,7 @@ void HlotifyConfig::createConfigFile(const std::string& path) {
     if (pos != std::string::npos) {
         std::string dirPath = path.substr(0, pos+1);
         HlotifyConfig::createDirs(dirPath);
-        int fd = open(path.c_str(), O_WRONLY | O_CREAT, 0644);
+        int fd = open(path.c_str(), O_WRONLY | O_CREAT, S_IRWXG);
         if (fd == -1) {
             configErrorErrno("Unable to create config file");
             exit(EACCES);
@@ -121,7 +131,7 @@ void HlotifyConfig::createConfigFile(const std::string& path) {
     }
 }
 
-std::string HlotifyConfig::getValue(const std::string& section, const std::string& key, const std::string& defaultValue) {
+std::string HlotifyConfig::getValue(const std::string& section, const std::string& key, const std::string& defaultValue) const {
     checkOpened();
     return std::string(rc.GetValue(section.c_str(), key.c_str(), defaultValue.c_str()));
 }
@@ -134,7 +144,7 @@ void HlotifyConfig::setValue(const std::string& section, const std::string& key,
 
 void HlotifyConfig::deleteSection(const std::string& section) {
     checkOpened();
-    rc.Delete(section.c_str(), NULL);
+    rc.Delete(section.c_str(), nullptr);
     saveConfigFile();
 }
 
@@ -144,38 +154,40 @@ void HlotifyConfig::deleteKey(const std::string& section, const std::string& key
     saveConfigFile();
 }
 
-std::vector<std::string> HlotifyConfig::getSections() {
+std::vector<std::string> HlotifyConfig::getSections() const{
     checkOpened();
     CSimpleIniA::TNamesDepend sections;
     rc.GetAllSections(sections);
 
     std::vector<std::string> sectionVector;
-    for (CSimpleIniA::TNamesDepend::iterator it = sections.begin(); it != sections.end(); ++it) {
-        sectionVector.push_back(it->pItem);
+    for (const auto& section : sections) {
+        sectionVector.emplace_back(section.pItem);
     }
     return sectionVector;
 }
 
-std::string HlotifyConfig::treeView() {
+std::string HlotifyConfig::treeView() const{
     checkOpened();
 
     std::string resultString = configPath + "\n\n";
     CSimpleIniA::TNamesDepend sections;
+    std::ostringstream resultStream;
     rc.GetAllSections(sections);
-
-    for (CSimpleIniA::TNamesDepend::iterator it = sections.begin(); it != sections.end(); ++it) {
+    
+    for (const auto& section : sections) {
         CSimpleIniA::TNamesDepend keys;
-        rc.GetAllKeys(it->pItem, keys);
-
-        resultString += std::string("• ") + it->pItem + "\n";
-        for (CSimpleIniA::TNamesDepend::iterator kIt = keys.begin(); kIt != keys.end(); ++kIt) {
-            resultString += std::string("\t\"") + kIt->pItem + "\": \"" + rc.GetValue(it->pItem, kIt->pItem)+ "\"" + "\n";
+        rc.GetAllKeys(section.pItem, keys);
+        resultStream << "• " << section.pItem << "\n";
+        for (const auto& key : keys) {
+            resultStream << "\t\"" << key.pItem << "\": \"" << rc.GetValue(section.pItem, key.pItem) << "\"\n";
         }
     }
+
+    resultString = resultStream.str();
     return resultString;
 }
 
-void HlotifyConfig::checkOpened() {
+void HlotifyConfig::checkOpened() const {
     if (rcErr != SI_OK) {
         configError("Config file is not opened");
     }

@@ -10,19 +10,22 @@ public:
     void reparseConfig();
     void saveConfig();
 
-    std::string getValue(const std::string&, const std::string&, const std::string& = "");
+    std::string getValue(const std::string&, const std::string&, const std::string& = "") const;
+    std::vector<std::string> getSections() const;
+
     void setValue(const std::string&, const std::string&, const std::string&, const std::string& = "", bool = false);
+
     void deleteSection(const std::string&);
     void deleteKey(const std::string&, const std::string&);
-    std::vector<std::string> getSections();
-    std::string treeView();
+    
+    std::string treeView() const;
 
 private:
     CSimpleIniA rc;
     SI_Error rcErr;
     std::string configPath;
 
-    void checkOpened();
+    void checkOpened() const;
     void loadConfigFile();
     void saveConfigFile();
     static void createDirs(const std::string&);
@@ -31,6 +34,6 @@ private:
     static std::string globalConfigPath();
     static std::string findConfig();
 
-    static void configError(const std::string&);
-    static void configErrorErrno(const std::string&);
+    __attribute__((noreturn)) static void configError(const std::string&);
+    __attribute__((noreturn)) static void configErrorErrno(const std::string&);
 };
