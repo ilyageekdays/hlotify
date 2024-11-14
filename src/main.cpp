@@ -3,174 +3,157 @@
 #include <iterator>
 #include <ranges>
 
+#include "notification_elements.h"
 #include "notification_manager.h"
 #include "config.h"
 
-void printVector(const std::vector<std::string>& vec) {
-    std::ranges::copy(vec, std::ostream_iterator<std::string>(std::cout, "\n"));
-}
-
 int main(int argc, char* argv[]) {
-    std::system("clear");
-    NotificationManager hlotifyManager;
-    HlotifyConfig config;
-    int choice;
 
+    std::vector<std::unique_ptr<HlNotificationElement>> elements;
+    std::system("clear");
+    int choice;
     do {
-        std::cout << "1. Create Notification\n"
-                  << "2. Create Timed Notification\n"
-                  << "3. Read Notifications\n"
-                  << "4. Update Notification\n"
-                  << "5. Delete Notification\n"
-                  << "6. Tree View of Config\n"
-                  << "7. Get List of All Config Sections\n"
-                  << "8. Set Value in Config\n"
-                  << "9. Get Value in Config\n"
-                  << "10. Remove Key in Config\n"
-                  << "11. Remove Section in Config\n"
-                  << "12. Exit\n"
+        std::cout << "1. Elements List\n"
+                  << "2. Create Element\n"
+                  << "3. Remove Element\n"
+                  << "4. Get Element Info\n"
+                  << "5. Draw Element\n"
+                  << "6. Click Element\n"
+                  << "7. Exit\n"
                   << "Choose an option: ";
         std::cin >> choice;
-
         std::system("clear");
-
-        switch (choice) {
+        switch(choice) {
             case 1: {
-                std::string title;
-                std::string message;
-
-                std::cin.ignore();
-                std::cout << "Enter title: ";
-                std::getline(std::cin, title);
-                std::cout << "Enter message: ";
-                std::getline(std::cin, message);
-                hlotifyManager.createNotification(title, message);
+                std::array<std::string, 3> typeNames = { "Text", "Image", "Button" };
+                int index = 0;
+                std::cout << "List of elements:\n";
+                for (const auto& elem : elements) {
+                    std::cout << "[" << index << "]: " << typeNames[static_cast<std::size_t>(elem->getType())] << " \"" << elem->getName() << "\"\n";
+                    index++;
+                }
+                std::cout << "\n";
                 break;
             }
             case 2: {
-                std::string title;
-                std::string message;
-                int duration;
-
+                int typeChoice;
+                float relX;
+                float relY;
+                float relWidth;
+                float relHeight;
+                std::string name;
+                std::cout << "Enter an element name: ";
                 std::cin.ignore();
-                std::cout << "Enter title: ";
-                std::getline(std::cin, title);
-                std::cout << "Enter message: ";
-                std::getline(std::cin, message);
-                std::cout << "Enter duration in seconds: ";
-                std::cin >> duration;
-                hlotifyManager.createTimedNotification(title, message, duration);
+                std::cin >> name;
+                std::cout << "Select an element type(1 - Text, 2 - Image, 3 - Button): ";
+                std::cin >> typeChoice;
+
+                switch (typeChoice)
+                {
+                    case 1: {
+                        std::string text;
+                        std::cout << "Enter the text of the textElement: ";
+                        std::cin >> text;
+                        std::cout << "Enter layout data of textElement(relX, relY, relWidth, relHeight): ";
+                        std::cin >> relX;
+                        std::cin >> relY;
+                        std::cin >> relWidth;
+                        std::cin >> relHeight;
+                        elements.push_back(make_unique<HlTextElement>(name, relX, relY, relWidth, relHeight, text));
+                        break;
+                    }
+                    case 2: {
+                        std::string path;
+                        std::cout << "Enter the path of the image: ";
+                        std::cin >> path;
+                        std::cout << "Enter layout data of imageElement(relX, relY, relWidth, relHeight): ";
+                        std::cin >> relX;
+                        std::cin >> relY;
+                        std::cin >> relWidth;
+                        std::cin >> relHeight;
+                        elements.push_back(make_unique<HlImageElement>(name, relX, relY, relWidth, relHeight, path));
+                        break;
+                    }
+                    case 3: {
+                        std::string label;
+                        std::cout << "Enter the label of the button: ";
+                        std::cin >> label;
+                        std::cout << "Enter layout data of buttonElement(relX, relY, relWidth, relHeight): ";
+                        std::cin >> relX;
+                        std::cin >> relY;
+                        std::cin >> relWidth;
+                        std::cin >> relHeight;
+                        elements.push_back(make_unique<HlButtonElement>(name, relX, relY, relWidth, relHeight, label));
+                        break;
+                    }
+                    default:
+                        std::cout << "Invalid choice!\n";
+                        break;
+                    }
+                    std::cout << "Element created successfully\n";
                 break;
             }
-            case 3:
-                std::system("clear");
-                hlotifyManager.readNotifications();
-                break;
-            case 4: {
-                size_t index;
-                std::string newTitle;
-                std::string newMessage;
-
-                std::cout << "Enter index of notification to update: ";
+            case 3: {
+                int index;
+                std::cout << "Enter the index of the element to be removed: ";
                 std::cin >> index;
-                std::cin.ignore();
-                std::cout << "Enter new title: ";
-                std::getline(std::cin, newTitle);
-                std::cout << "Enter new message: ";
-                std::getline(std::cin, newMessage);
-                hlotifyManager.updateNotification(index, newTitle, newMessage);
+                if (index < 0 || index >= elements.size()) {
+                    std::cout << "Incorrect index!\n";
+                    break;
+                }
+                elements.erase(elements.begin() + index);
+                std::cout << "Element removed successfully\n";
+                break;
+            }
+            case 4: {
+                std::array<std::string, 3> typeNames = { "Text", "Image", "Button" };
+                int index;
+                std::cout << "Enter the index of the element: ";
+                std::cin >> index;
+                if (index < 0 || index >= elements.size()) {
+                    std::cout << "Incorrect index!\n";
+                    break;
+                }
+                std::cout << typeNames[static_cast<std::size_t>(elements[index]->getType())] << "\n";
                 break;
             }
             case 5: {
-                size_t index;
-                std::cout << "Enter index of notification to delete: ";
+                int index;
+                std::cout << "Enter the index of the element: ";
                 std::cin >> index;
-                hlotifyManager.deleteNotification(index);
+                if (index < 0 || index >= elements.size()) {
+                    std::cout << "Incorrect index!\n";
+                    break;
+                }
+                if (auto drawable = dynamic_cast<HlDrawable*>(elements[index].get())) {
+                    drawable->draw();
+                } else {
+                    std::cout << "Selected element is not drawable!\n";
+                }
                 break;
             }
             case 6: {
-                std::system("clear");
-                std::cout << config.treeView() << "\n\n";
+                int index;
+                std::cout << "Enter the index of the element: ";
+                std::cin >> index;
+                if (index < 0 || index >= elements.size()) {
+                    std::cout << "Incorrect index!\n";
+                    break;
+                }
+                if (auto clickable = dynamic_cast<HlClickable*>(elements[index].get())) {
+                    clickable->onClick();
+                } else {
+                    std::cout << "Selected element is not clickable!\n";
+                    std::cout << clickable;
+                }
                 break;
             }
-            case 7: {
-                std::system("clear");
-                std::cout << "List of Sections:\n";
-                std::vector<std::string> vec = config.getSections();
-                printVector(vec);
-                std::cout << "\n\n";
-                break;
-            }
-            case 8: {
-                std::string section;
-                std::string key;
-                std::string value;
-
-                std::system("clear");
-                std::cout << "Enter section name: ";
-                std::cin.ignore();
-                std::cin >> section;
-                std::cout << "Enter key name: ";
-                std::cin.ignore();
-                std::cin >> key;
-                std::cout << "Enter value: ";
-                std::cin.ignore();
-                std::cin >> value;
-
-                config.setValue(section, key, value);
-                std::cout << "Value set successfully." << std::endl;
-                break;
-            }
-            case 9: {
-                std::string section;
-                std::string key;
-
-                std::system("clear");
-                std::cout << "Enter section name: ";
-                std::cin.ignore();
-                std::cin >> section;
-                std::cout << "Enter key name: ";
-                std::cin.ignore();
-                std::cin >> key;
-                std::cout << "Requested value: " << config.getValue(section, key) << "\n";
-
-                break;
-            }
-            case 10: {
-                std::string section;
-                std::string key;
-
-                std::system("clear");
-                std::cout << "Enter section name: ";
-                std::cin.ignore();
-                std::cin >> section;
-                std::cout << "Enter key name: ";
-                std::cin.ignore();
-                std::cin >> key;
-                config.deleteKey(section, key);
-                std::cout << "Requested Key is Deleted!\n";
-
-                break;
-            }
-            case 11: {
-                std::string section;
-
-                std::system("clear");
-                std::cout << "Enter section name: ";
-                std::cin.ignore();
-                std::cin >> section;
-                config.deleteSection(section);
-                std::cout << "Requested Section is Deleted!\n";
-
-                break;
-            }
-            case 12:
-                std::cout << "Exiting..." << std::endl;
+            case 7: 
                 break;
             default:
-                std::cout << "Invalid choice!" << std::endl;
+                std::cout << "Invalid choice!\n";
         }
-    } while (choice != 12);
+    } while (choice != 7);
 
     return 0;
 }
