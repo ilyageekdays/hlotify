@@ -1,15 +1,25 @@
 #include <iostream>
 #include <cstdlib>
-#include <iterator>
-#include <ranges>
+#include <vector>
+#include <memory>
+#include <array>
 
-#include "notification_elements.h"
-#include "notification_manager.h"
-#include "config.h"
+#include "notification_element.h"
+#include "button_element.h"
+#include "image_element.h"
+#include "text_element.h"
+#include "drawable.h"
+#include "clickable.h"
+#include "notification_container.h"
+#include "notification.h"
 
 int main(int argc, char* argv[]) {
-
     std::vector<std::unique_ptr<HlNotificationElement>> elements;
+    
+    NotificationContainer<Notification> container;
+
+    container.add(std::make_shared<Notification>("Title", "Message", 1));
+
     std::system("clear");
     int choice;
     do {

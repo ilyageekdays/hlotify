@@ -1,5 +1,9 @@
 #include <iostream>
-#include "notification_elements.h"
+
+#include "notification_element.h"
+#include "button_element.h"
+#include "image_element.h"
+#include "text_element.h"
 
 HlElementType HlNotificationElement::getType() const {
     return this->type;
