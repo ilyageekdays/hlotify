@@ -4,7 +4,7 @@ cmake_minimum_required (VERSION 3.19)
 
 set(CMAKE_CXX_STANDARD 20)
 
-set(SOURCES main.cpp notification.cpp notification_manager.cpp config.cpp notification_elements.cpp)
+set(SOURCES main.cpp notification.cpp notification_manager.cpp config.cpp notification_elements.cpp hlotify_exception.cpp)
 
 include_directories(${CMAKE_SOURCE_DIR}/include/simpleini)
 include_directories(${CMAKE_SOURCE_DIR}/src/headers)

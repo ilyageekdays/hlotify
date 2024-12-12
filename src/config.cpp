@@ -12,6 +12,7 @@
 
 #include "SimpleIni.h"
 
+#include "hlotify_exception.h"
 #include "config.h"
 
 HlotifyConfig::HlotifyConfig() {
@@ -78,7 +79,7 @@ void HlotifyConfig::loadConfigFile() {
     rc.SetUnicode();
     rcErr = rc.LoadFile(configPath.c_str());
     if (rcErr != SI_OK) {
-        configErrorErrno("Unable to load config file");
+        throw HlConfigLoadException();
         exit(EIO);
     }
 }
@@ -86,7 +87,7 @@ void HlotifyConfig::loadConfigFile() {
 void HlotifyConfig::saveConfigFile() {
     rcErr = rc.SaveFile(configPath.c_str());
     if (rcErr != SI_OK) {
-        configErrorErrno("Unable to save config file");
+        throw HlConfigSaveException();
         exit(EIO);
     }
 }
@@ -125,7 +126,7 @@ void HlotifyConfig::createConfigFile(const std::string& path) {
         HlotifyConfig::createDirs(dirPath);
         int fd = open(path.c_str(), O_WRONLY | O_CREAT, S_IRWXG);
         if (fd == -1) {
-            configErrorErrno("Unable to create config file");
+            throw HlConfigCreateException();
             exit(EACCES);
         }
     }
