@@ -1,9 +1,12 @@
 #ifndef NOTIFICATIONMANAGER_H
 #define NOTIFICATIONMANAGER_H
 
-#include "notification.h"
 #include <vector>
 #include <shared_mutex>
+#include <vector>
+
+#include "notification.h"
+#include "notification_container.h"
 
 class NotificationManager {
 public:
@@ -14,7 +17,8 @@ public:
     void deleteNotification(size_t index);
 
 private:
-    std::vector<std::shared_ptr<Notification>> notifications;
+    //NotificationContainer<std::shared_ptr<Notification>> notifications;
+    std::vector<> notifications;
     std::shared_mutex vec_mutex;
 };
 

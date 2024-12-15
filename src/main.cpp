@@ -26,7 +26,7 @@ int main(int argc, char* argv[]) {
         return EXIT_FAILURE;
     } catch (const HlConfigCreateException& e) {
         std::cerr << "Caught HlConfigCreateException: " << e.what() << "\n";
-        return EXIT_FAILURE;
+        return EXIT_F       AILURE;
     } catch (const HlConfigException& e) {
         std::cerr << "Caught HlConfigException: " << e.what() << "\n";
         return EXIT_FAILURE;
