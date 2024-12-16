@@ -1,194 +1,223 @@
 #include <iostream>
+#include <fstream>
+#include <unistd.h>
+#include <signal.h>
+#include <string>
+#include <cstring>
 #include <cstdlib>
-#include <iterator>
-#include <ranges>
+#include <ctime>
+#include <iomanip>
+#include <sys/prctl.h>
 
-#include "notification_manager.h"
-#include "hlotify_exception.h"
-#include "config.h"
+const std::string PID_FILE = "/tmp/hlotify.pid";
+const std::string LOG_FILE = "/tmp/hlotify.log";
 
-void printVector(const std::vector<std::string>& vec) {
-    std::ranges::copy(vec, std::ostream_iterator<std::string>(std::cout, "\n"));
+class Logger {
+public:
+    enum Level { DEBUG, INFO, ERROR };
+
+    Logger(const std::string& file) {
+        log_stream.open(file, std::ios::app);
+        if (!log_stream) {
+            throw std::runtime_error("Failed to open log file: " + file);
+        }
+    }
+
+    ~Logger() {
+        if (log_stream.is_open()) {
+            log_stream.close();
+        }
+    }
+
+    void log(const std::string& message, Level level) {
+        if (log_stream.is_open()) {
+            log_stream << timestamp() << " [" << level_to_string(level) << "] " << message << std::endl;
+        }
+    }
+
+private:
+    std::ofstream log_stream;
+
+    std::string timestamp() {
+        std::time_t now = std::time(nullptr);
+        std::tm tm = *std::localtime(&now);
+        std::ostringstream oss;
+        oss << std::put_time(&tm, "%Y-%m-%d %H:%M:%S");
+        return oss.str();
+    }
+
+    std::string level_to_string(Level level) {
+        switch (level) {
+            case DEBUG: return "DEBUG";
+            case INFO: return "INFO";
+            case ERROR: return "ERROR";
+        }
+        return "UNKNOWN";
+    }
+};
+
+Logger logger(LOG_FILE);
+
+pid_t read_pid() {
+    std::ifstream pid_file(PID_FILE);
+    pid_t pid;
+    if (pid_file >> pid) {
+        logger.log("Read PID from file: " + std::to_string(pid), Logger::DEBUG);
+        return pid;
+    }
+    logger.log("No PID found in file.", Logger::DEBUG);
+    return -1;
+}
+
+void write_pid(pid_t pid) {
+    std::ofstream pid_file(PID_FILE);
+    if (pid_file) {
+        pid_file << pid;
+        logger.log("Wrote PID to file: " + std::to_string(pid), Logger::DEBUG);
+    } else {
+        logger.log("Failed to write PID to file.", Logger::ERROR);
+    }
+}
+
+void remove_pid_file() {
+    if (std::remove(PID_FILE.c_str()) == 0) {
+        logger.log("Removed PID file.", Logger::DEBUG);
+    } else {
+        logger.log("Failed to remove PID file.", Logger::ERROR);
+    }
+}
+
+bool is_process_running(pid_t pid) {
+    if (kill(pid, 0) == 0) {
+        logger.log("Process with PID " + std::to_string(pid) + " is running.", Logger::DEBUG);
+        return true;
+    } else {
+        if (errno == ESRCH) {
+            logger.log("No process with PID " + std::to_string(pid) + " found.", Logger::DEBUG);
+        } else {
+            logger.log("Error checking PID " + std::to_string(pid) + ": " + std::strerror(errno), Logger::ERROR);
+        }
+        return false;
+    }
+}
+
+void daemon_work() {
+    while (true) {
+        sleep(5);
+        logger.log("Daemon is running...", Logger::DEBUG);
+    }
+}
+
+void start_daemon() {
+    logger.log("Attempting to start daemon...", Logger::DEBUG);
+    std::cout << "Starting daemon..." << std::endl;
+
+    pid_t existing_pid = read_pid();
+    if (existing_pid > 0) {
+        if (is_process_running(existing_pid)) {
+            logger.log("Daemon is already running with PID: " + std::to_string(existing_pid), Logger::ERROR);
+            std::cout << "Daemon is already running with PID: " << existing_pid << std::endl;
+            return;
+        } else {
+            logger.log("Stale PID file detected. Removing PID file.", Logger::INFO);
+            remove_pid_file();
+        }
+    }
+
+    pid_t pid = fork();
+    if (pid < 0) {
+        logger.log("Failed to fork.", Logger::ERROR);
+        std::cerr << "Failed to fork." << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
+    if (pid > 0) {
+        logger.log("Daemon started with PID: " + std::to_string(pid), Logger::INFO);
+        std::cout << "Daemon started with PID: " << pid << std::endl;
+        return;
+    }
+
+    logger.log("Child process created for daemon.", Logger::DEBUG);
+
+    if (setsid() < 0) {
+        logger.log("Failed to create new session.", Logger::ERROR);
+        std::cerr << "Failed to create new session." << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
+    logger.log("New session created.", Logger::DEBUG);
+
+    if (prctl(PR_SET_NAME, "hlotify-daemon", 0, 0, 0) != 0) {
+        logger.log("Failed to set process name.", Logger::ERROR);
+        exit(EXIT_FAILURE);
+    }
+    logger.log("Process name set to 'hlotify-daemon'.", Logger::INFO);
+
+    if (!freopen("/dev/null", "r", stdin)) {
+        logger.log("Failed to redirect stdin.", Logger::ERROR);
+    }
+    if (!freopen("/dev/null", "w", stdout)) {
+        logger.log("Failed to redirect stdout.", Logger::ERROR);
+    }
+    if (!freopen("/dev/null", "w", stderr)) {
+        logger.log("Failed to redirect stderr.", Logger::ERROR);
+    }
+
+    write_pid(getpid());
+
+    signal(SIGTERM, [](int) {
+        logger.log("Daemon is stopping...", Logger::INFO);
+        remove_pid_file();
+        exit(EXIT_SUCCESS);
+    });
+
+    daemon_work();
+}
+
+void stop_daemon() {
+    logger.log("Attempting to stop daemon...", Logger::DEBUG);
+    std::cout << "Stopping daemon..." << std::endl;
+
+    pid_t pid = read_pid();
+    if (pid > 0 && is_process_running(pid)) {
+        if (kill(pid, SIGTERM) == 0) {
+            logger.log("Daemon with PID: " + std::to_string(pid) + " stopped.", Logger::INFO);
+            std::cout << "Daemon with PID: " << pid << " stopped." << std::endl;
+        } else {
+            logger.log("Failed to send SIGTERM to PID: " + std::to_string(pid), Logger::ERROR);
+            std::cerr << "Failed to send SIGTERM to PID: " << pid << std::endl;
+        }
+    } else {
+        logger.log("No running daemon found.", Logger::ERROR);
+        std::cerr << "No running daemon found." << std::endl;
+    }
 }
 
 int main(int argc, char* argv[]) {
-    std::system("clear");
-    NotificationManager hlotifyManager;
-    std::unique_ptr<HlotifyConfig> config;
-
     try {
-        config = std::make_unique<HlotifyConfig>();
-    } catch (const HlConfigLoadException& e) {
-        std::cerr << "Caught HlConfigLoadException: " << e.what() << "\n";
-        return EXIT_FAILURE;
-    } catch (const HlConfigSaveException& e) {
-        std::cerr << "Caught HlConfigSaveException: " << e.what() << "\n";
-        return EXIT_FAILURE;
-    } catch (const HlConfigCreateException& e) {
-        std::cerr << "Caught HlConfigCreateException: " << e.what() << "\n";
-        return EXIT_F       AILURE;
-    } catch (const HlConfigException& e) {
-        std::cerr << "Caught HlConfigException: " << e.what() << "\n";
+        if (argc < 2) {
+            logger.log("Usage: " + std::string(argv[0]) + " start|stop", Logger::ERROR);
+            std::cerr << "Usage: " << argv[0] << " start|stop" << std::endl;
+            return EXIT_FAILURE;
+        }
+
+        std::string command = argv[1];
+
+        logger.log("Command received: " + command, Logger::DEBUG);
+
+        if (command == "start") {
+            start_daemon();
+        } else if (command == "stop") {
+            stop_daemon();
+        } else {
+            logger.log("Unknown command: " + command, Logger::ERROR);
+            std::cerr << "Unknown command: " << command << std::endl;
+            return EXIT_FAILURE;
+        }
+    } catch (const std::exception& e) {
+        std::cerr << "[ERROR] " << e.what() << std::endl;
         return EXIT_FAILURE;
     }
 
-    int choice;
-
-    do {
-        std::cout << "1. Create Notification\n"
-                  << "2. Create Timed Notification\n"
-                  << "3. Read Notifications\n"
-                  << "4. Update Notification\n"
-                  << "5. Delete Notification\n"
-                  << "6. Tree View of Config\n"
-                  << "7. Get List of All Config Sections\n"
-                  << "8. Set Value in Config\n"
-                  << "9. Get Value in Config\n"
-                  << "10. Remove Key in Config\n"
-                  << "11. Remove Section in Config\n"
-                  << "12. Exit\n"
-                  << "Choose an option: ";
-        std::cin >> choice;
-
-        std::system("clear");
-
-        switch (choice) {
-            case 1: {
-                std::string title;
-                std::string message;
-
-                std::cin.ignore();
-                std::cout << "Enter title: ";
-                std::getline(std::cin, title);
-                std::cout << "Enter message: ";
-                std::getline(std::cin, message);
-                hlotifyManager.createNotification(title, message);
-                break;
-            }
-            case 2: {
-                std::string title;
-                std::string message;
-                int duration;
-
-                std::cin.ignore();
-                std::cout << "Enter title: ";
-                std::getline(std::cin, title);
-                std::cout << "Enter message: ";
-                std::getline(std::cin, message);
-                std::cout << "Enter duration in seconds: ";
-                std::cin >> duration;
-                hlotifyManager.createTimedNotification(title, message, duration);
-                break;
-            }
-            case 3:
-                std::system("clear");
-                hlotifyManager.readNotifications();
-                break;
-            case 4: {
-                size_t index;
-                std::string newTitle;
-                std::string newMessage;
-
-                std::cout << "Enter index of notification to update: ";
-                std::cin >> index;
-                std::cin.ignore();
-                std::cout << "Enter new title: ";
-                std::getline(std::cin, newTitle);
-                std::cout << "Enter new message: ";
-                std::getline(std::cin, newMessage);
-                hlotifyManager.updateNotification(index, newTitle, newMessage);
-                break;
-            }
-            case 5: {
-                size_t index;
-                std::cout << "Enter index of notification to delete: ";
-                std::cin >> index;
-                hlotifyManager.deleteNotification(index);
-                break;
-            }
-            case 6: {
-                std::system("clear");
-                std::cout << config->treeView() << "\n\n";
-                break;
-            }
-            case 7: {
-                std::system("clear");
-                std::cout << "List of Sections:\n";
-                std::vector<std::string> vec = config->getSections();
-                printVector(vec);
-                std::cout << "\n\n";
-                break;
-            }
-            case 8: {
-                std::string section;
-                std::string key;
-                std::string value;
-
-                std::system("clear");
-                std::cout << "Enter section name: ";
-                std::cin.ignore();
-                std::cin >> section;
-                std::cout << "Enter key name: ";
-                std::cin.ignore();
-                std::cin >> key;
-                std::cout << "Enter value: ";
-                std::cin.ignore();
-                std::cin >> value;
-
-                config->setValue(section, key, value);
-                std::cout << "Value set successfully." << std::endl;
-                break;
-            }
-            case 9: {
-                std::string section;
-                std::string key;
-
-                std::system("clear");
-                std::cout << "Enter section name: ";
-                std::cin.ignore();
-                std::cin >> section;
-                std::cout << "Enter key name: ";
-                std::cin.ignore();
-                std::cin >> key;
-                std::cout << "Requested value: " << config->getValue(section, key) << "\n";
-
-                break;
-            }
-            case 10: {
-                std::string section;
-                std::string key;
-
-                std::system("clear");
-                std::cout << "Enter section name: ";
-                std::cin.ignore();
-                std::cin >> section;
-                std::cout << "Enter key name: ";
-                std::cin.ignore();
-                std::cin >> key;
-                config->deleteKey(section, key);
-                std::cout << "Requested Key is Deleted!\n";
-
-                break;
-            }
-            case 11: {
-                std::string section;
-
-                std::system("clear");
-                std::cout << "Enter section name: ";
-                std::cin.ignore();
-                std::cin >> section;
-                config->deleteSection(section);
-                std::cout << "Requested Section is Deleted!\n";
-
-                break;
-            }
-            case 12:
-                std::cout << "Exiting..." << std::endl;
-                break;
-            default:
-                std::cout << "Invalid choice!" << std::endl;
-        }
-    } while (choice != 12);
-
-    return 0;
+    return EXIT_SUCCESS;
 }
