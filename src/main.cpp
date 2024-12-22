@@ -2,10 +2,23 @@
 #include <cstdlib>
 #include <iterator>
 #include <ranges>
+#include <iomanip>
 
 #include "notification_manager.h"
 #include "hlotify_exception.h"
 #include "config.h"
+#include "hlotify_logger.h"
+
+std::string getCurrentTimeForFilename() {
+    auto now = std::chrono::system_clock::now();
+    auto timeT = std::chrono::system_clock::to_time_t(now);
+    auto timeMs = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()) % 1000;
+
+    std::ostringstream oss;
+    oss << std::put_time(std::localtime(&timeT), "%Y-%m-%d_%H-%M-%S") << "_"
+        << std::setw(3) << std::setfill('0') << timeMs.count();
+    return oss.str();
+}
 
 void printVector(const std::vector<std::string>& vec) {
     std::ranges::copy(vec, std::ostream_iterator<std::string>(std::cout, "\n"));
@@ -14,6 +27,8 @@ void printVector(const std::vector<std::string>& vec) {
 int main(int argc, char* argv[]) {
     std::system("clear");
     NotificationManager hlotifyManager;
+    Logger& logger = Logger::getInstance();
+    logger.setLogFile("logs/hlotify.log");
     std::unique_ptr<HlotifyConfig> config;
 
     try {
@@ -26,7 +41,7 @@ int main(int argc, char* argv[]) {
         return EXIT_FAILURE;
     } catch (const HlConfigCreateException& e) {
         std::cerr << "Caught HlConfigCreateException: " << e.what() << "\n";
-        return EXIT_F       AILURE;
+        return EXIT_FAILURE;
     } catch (const HlConfigException& e) {
         std::cerr << "Caught HlConfigException: " << e.what() << "\n";
         return EXIT_FAILURE;
@@ -46,7 +61,8 @@ int main(int argc, char* argv[]) {
                   << "9. Get Value in Config\n"
                   << "10. Remove Key in Config\n"
                   << "11. Remove Section in Config\n"
-                  << "12. Exit\n"
+                  << "12. Get Logs\n"
+                  << "13. Exit\n"
                   << "Choose an option: ";
         std::cin >> choice;
 
@@ -182,13 +198,30 @@ int main(int argc, char* argv[]) {
 
                 break;
             }
-            case 12:
+            case 13:
                 std::cout << "Exiting..." << std::endl;
                 break;
+            case 12: {
+                std::string startTime, endTime;
+                std::cout << "Enter the start time (format: YYYY-MM-DD HH:MM:SS): ";
+                std::cin.ignore();
+                std::getline(std::cin, startTime);
+                std::cout << "Enter the end time (format: YYYY-MM-DD HH:MM:SS): ";
+                std::getline(std::cin, endTime);
+
+                try {
+                    std::string exportFileName = "logs/hlotify-" + getCurrentTimeForFilename() + ".log";
+                    logger.exportLogs(startTime, endTime, exportFileName);
+                    std::cout << "Logs successfully exported to: " << exportFileName << std::endl;
+                } catch (const std::exception& ex) {
+                    std::cerr << "Error exporting logs: " << ex.what() << std::endl;
+                }
+                break;
+            }
             default:
                 std::cout << "Invalid choice!" << std::endl;
         }
-    } while (choice != 12);
+    } while (choice != 13);
 
     return 0;
 }

@@ -9,47 +9,71 @@
 #include <iterator>
 
 template <typename T>
+class HlIterator {
+private:
+    std::shared_ptr<T>* ptr_;  // Указатель на std::shared_ptr<T>
+
+public:
+    // Конструктор итератора, принимающий указатель на std::shared_ptr<T>
+    explicit HlIterator(std::shared_ptr<T>* ptr) : ptr_(ptr) {}
+
+    // Оператор * для доступа к объекту через shared_ptr
+    T& operator*() {
+        return *ptr_->get();  // Получаем объект, на который указывает shared_ptr
+    }
+
+    // Оператор -> для доступа к членам объекта
+    T* operator->() {
+        return ptr_->get();
+    }
+
+    // Оператор ++ для перехода к следующему элементу
+    HlIterator& operator++() {
+        ++ptr_;
+        return *this;
+    }
+
+    // Оператор == для сравнения итераторов
+    bool operator==(const HlIterator& other) const {
+        return ptr_ == other.ptr_;
+    }
+
+    // Оператор != для сравнения итераторов
+    bool operator!=(const HlIterator& other) const {
+        return ptr_ != other.ptr_;
+    }
+};
+
+
+template <typename T>
 class NotificationContainer {
 private:
     std::vector<std::shared_ptr<T>> elements;
 
 public:
-    class iterator {
-    public:
-        typedef iterator self_type;
-        typedef T value_type;
-        typedef T& reference;
-        typedef T* pointer;
-        typedef std::bidirectional_iterator_tag iterator_category;
-        typedef std::ptrdiff_t difference_type;
+    using iterator = HlIterator<T>;
 
-        iterator(pointer ptr) : ptr_(ptr) {}
+    iterator begin() {
+        return iterator(elements.data());
+    }
 
-        self_type operator++() {
-            ptr_++;
-            return *this;
-        }
+    iterator end() {
+        return iterator(elements.data() + elements.size());
+    }
 
-        self_type operator++(int) {
-            self_type tmp = *this;
-            ++(*this);
-            return tmp;
-        }
+    std::shared_ptr<T> back() const {
+        return elements.back();
+    }
 
-        reference operator*() { return *ptr_; }
-        pointer operator->() { return ptr_; }
+    std::shared_ptr<T>& operator[](size_t index) {
+        return elements[index];
+    }
 
-        bool operator==(const self_type& rhs) { return ptr_ == rhs.ptr_; }
-        bool operator!=(const self_type& rhs) { return ptr_ != rhs.ptr_; }
+    const std::shared_ptr<T>& operator[](size_t index) const {
+        return elements[index];
+    }
 
-    private:
-        pointer ptr_;
-    };
-
-    iterator begin() { return iterator(elements.data()); }
-    iterator end() { return iterator(elements.data() + elements.size()); }
-
-    void add(const std::shared_ptr<T>& element) {
+    void add(std::shared_ptr<T> element) {
         elements.push_back(element);
     }
 

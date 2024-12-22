@@ -17,8 +17,8 @@ public:
     void deleteNotification(size_t index);
 
 private:
-    //NotificationContainer<std::shared_ptr<Notification>> notifications;
-    std::vector<> notifications;
+    NotificationContainer<Notification> notifications;
+    // std::vector<> notifications;
     std::shared_mutex vec_mutex;
 };
 

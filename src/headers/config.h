@@ -3,6 +3,7 @@
 #include <vector>
 
 #include "SimpleIni.h"
+#include "hlotify_logger.h"
 
 class HlotifyConfig {
 public:
